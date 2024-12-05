@@ -4,14 +4,14 @@ import os
 import asyncio
 from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ChatJoinRequest
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
-
+from datetime import datetime
 from bot import Bot
-from config import ADMINS, FORCE_MSG, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, PROTECT_CONTENT, START_PIC, AUTO_DELETE_TIME, AUTO_DELETE_MSG, JOIN_REQUEST_ENABLE,FORCE_SUB_CHANNEL
-from helper_func import subscribed,decode, get_messages, delete_file
-from database.database import add_user, del_user, full_userbase, present_user
-
+from config import ADMINS, FORCE_MSG, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, PROTECT_CONTENT, START_PIC, AUTO_DELETE_TIME, AUTO_DELETE_MSG, JOIN_REQUEST_ENABLE,FORCE_SUB_CHANNELS
+from database.database import add_user, del_user, full_userbase, present_user, add_join_request, check_join_request
+from helper_func import subscribed, encode, decode, get_messages
+import time
 
 @Bot.on_message(filters.command('start') & filters.private & subscribed)
 async def start_command(client: Client, message: Message):
@@ -163,23 +163,26 @@ REPLY_ERROR = """<code>Use this command as a replay to any telegram message with
 
 @Bot.on_message(filters.command('start') & filters.private)
 async def not_joined(client: Client, message: Message):
+    buttons = []
 
-    if bool(JOIN_REQUEST_ENABLE):
-        invite = await client.create_chat_invite_link(
-            chat_id=FORCE_SUB_CHANNEL,
-            creates_join_request=True
-        )
-        ButtonUrl = invite.invite_link
-    else:
-        ButtonUrl = client.invitelink
+    for channel_id in FORCE_SUB_CHANNELS:
+            if bool(JOIN_REQUEST_ENABLE):
+                invite = await client.create_chat_invite_link(
+                    chat_id=channel_id,
+                    creates_join_request=True
+                )
+                ButtonUrl = invite.invite_link
+            else:
+                ButtonUrl = client.invite_links[channel_id]
 
-    buttons = [
-        [
-            InlineKeyboardButton(
-                "Join Channel",
-                url = ButtonUrl)
-        ]
-    ]
+    buttons.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"Join Channel",
+                        url=ButtonUrl
+                    )
+                ]
+            )
 
     try:
         buttons.append(
@@ -258,3 +261,9 @@ Unsuccessful: <code>{unsuccessful}</code></b>"""
         await asyncio.sleep(8)
         await msg.delete()
 
+@Bot.on_chat_join_request(filters.chat(FORCE_SUB_CHANNELS))
+async def handle_chat_join_request(client: Client, join_request: ChatJoinRequest):
+    user_id = join_request.from_user.id
+    group_id = join_request.chat.id
+    if not await check_join_request(group_id, user_id):
+        await add_join_request(group_id, user_id)
