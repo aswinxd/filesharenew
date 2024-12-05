@@ -3,7 +3,6 @@ pyrogram
 TgCrypto
 pyromod==1.5
 python-dotenv
-# --- For-Database ------------ #
 pymongo
 dnspython
 # --- For-Web-Response ------- #

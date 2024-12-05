@@ -174,15 +174,7 @@ async def not_joined(client: Client, message: Message):
                 ButtonUrl = invite.invite_link
             else:
                 ButtonUrl = client.invite_links[channel_id]
-
-    buttons.append(
-                [
-                    InlineKeyboardButton(
-                        text=f"Join Channel",
-                        url=ButtonUrl
-                    )
-                ]
-            )
+            buttons.append([InlineKeyboardButton(text=f"Join Channel", url=ButtonUrl)])
 
     try:
         buttons.append(
