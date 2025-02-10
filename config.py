@@ -17,7 +17,7 @@ APP_ID = int(os.environ.get("APP_ID", "24428727"))
 API_HASH = os.environ.get("API_HASH", "1089a994258b8d77f06a2be5b1a01a31")
 
 #Your db channel Id
-CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002454896752"))
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002421018837"))
 
 #OWNER ID
 OWNER_ID = int(os.environ.get("OWNER_ID", "1137799257"))
@@ -45,7 +45,7 @@ START_PIC = os.environ.get("START_PIC","")
 START_MSG = os.environ.get("START_MESSAGE", "Hello {first}\n\nI can store private files in Specified Channel and other users can access it from special link.")
 try:
     ADMINS=[]
-    for x in (os.environ.get("ADMINS", "").split()):
+    for x in (os.environ.get("ADMINS", "6765202867").split()):
         ADMINS.append(int(x))
 except ValueError:
         raise Exception("Your Admins list does not contain valid integers.")
