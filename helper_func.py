@@ -3,155 +3,120 @@
 import base64
 import re
 import asyncio
-import logging 
+import logging
+from typing import Union
 from pyrogram import filters
 from pyrogram.enums import ChatMemberStatus
-from config import FORCE_SUB_CHANNELS, ADMINS, AUTO_DELETE_TIME, JOIN_REQUEST_ENABLE, AUTO_DEL_SUCCESS_MSG
 from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant
 from pyrogram.errors import FloodWait
-from typing import Union
+from config import (
+    FORCE_SUB_CHANNELS,
+    ADMINS,
+    AUTO_DELETE_TIME,
+    JOIN_REQUEST_ENABLE,
+    AUTO_DEL_SUCCESS_MSG
+)
 from database.database import check_join_request
 
-async def is_subscribed(filter, client, update):
-    if not FORCE_SUB_CHANNELS:
+
+async def is_subscribed(filter, client, update) -> bool:
+    if not FORCE_SUB_CHANNELS or update.from_user.id in ADMINS:
         return True
 
     user_id = update.from_user.id
-    if user_id in ADMINS:
-        return True
+    return all(await check_each(client, group_id, user_id) for group_id in FORCE_SUB_CHANNELS)
 
-    for group_id in FORCE_SUB_CHANNELS:
-        if not await check_each(client, group_id, user_id):
-            return False
 
-    return True
-
-async def check_each(client, group_id, user_id):
+async def check_each(client, group_id: int, user_id: int) -> bool:
     try:
         membership = await check_membership(client, group_id, user_id)
         join_request_status = await check_join_request(group_id, user_id)
 
-        if JOIN_REQUEST_ENABLE:
-            if membership or join_request_status:
-                return True
-            
-            return False
-
-        else:
-            if membership:
-                return True
-            return False
-
-    except Exception as e:
+        return membership or (JOIN_REQUEST_ENABLE and join_request_status)
+    except Exception:
         return False
 
-async def check_membership(client, chat_id, user_id):
+
+async def check_membership(client, chat_id: int, user_id: int) -> bool:
     try:
         member = await client.get_chat_member(chat_id=chat_id, user_id=user_id)
-        if member.status in [
+        return member.status in [
             ChatMemberStatus.OWNER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.MEMBER,
-        ]:
-            return True
-        return False
+        ]
     except UserNotParticipant:
         return False
 
 
-async def encode(string):
-    string_bytes = string.encode("ascii")
-    base64_bytes = base64.urlsafe_b64encode(string_bytes)
-    base64_string = (base64_bytes.decode("ascii")).strip("=")
-    return base64_string
+async def encode(string: str) -> str:
+    return base64.urlsafe_b64encode(string.encode()).decode().strip("=")
 
-async def decode(base64_string):
-    base64_string = base64_string.strip("=") # links generated before this commit will be having = sign, hence striping them to handle padding errors.
-    base64_bytes = (base64_string + "=" * (-len(base64_string) % 4)).encode("ascii")
-    string_bytes = base64.urlsafe_b64decode(base64_bytes) 
-    string = string_bytes.decode("ascii")
-    return string
 
-async def get_messages(client, message_ids):
+async def decode(base64_string: str) -> str:
+    base64_string = base64_string.strip("=") 
+    return base64.urlsafe_b64decode(base64_string + "=" * (-len(base64_string) % 4)).decode()
+
+
+async def get_messages(client, message_ids: list):
     messages = []
     total_messages = 0
-    while total_messages != len(message_ids):
-        temb_ids = message_ids[total_messages:total_messages+200]
+
+    while total_messages < len(message_ids):
+        temp_ids = message_ids[total_messages : total_messages + 200]
         try:
-            msgs = await client.get_messages(
-                chat_id=client.db_channel.id,
-                message_ids=temb_ids
-            )
+            msgs = await client.get_messages(chat_id=client.db_channel.id, message_ids=temp_ids)
         except FloodWait as e:
-            await asyncio.sleep(e.x)
-            msgs = await client.get_messages(
-                chat_id=client.db_channel.id,
-                message_ids=temb_ids
-            )
-        except:
-            pass
-        total_messages += len(temb_ids)
+            await asyncio.sleep(e.value)
+            msgs = await client.get_messages(chat_id=client.db_channel.id, message_ids=temp_ids)
+        except Exception:
+            continue
+
+        total_messages += len(temp_ids)
         messages.extend(msgs)
+
     return messages
 
-async def get_message_id(client, message):
-    if message.forward_from_chat:
-        if message.forward_from_chat.id == client.db_channel.id:
-            return message.forward_from_message_id
-        else:
-            return 0
-    elif message.forward_sender_name:
-        return 0
+
+async def get_message_id(client, message) -> int:
+    if message.forward_from_chat and message.forward_from_chat.id == client.db_channel.id:
+        return message.forward_from_message_id
     elif message.text:
-        pattern = "https://t.me/(?:c/)?(.*)/(\d+)"
-        matches = re.match(pattern,message.text)
-        if not matches:
-            return 0
-        channel_id = matches.group(1)
-        msg_id = int(matches.group(2))
-        if channel_id.isdigit():
-            if f"-100{channel_id}" == str(client.db_channel.id):
-                return msg_id
-        else:
-            if channel_id == client.db_channel.username:
-                return msg_id
-    else:
-        return 0
+        match = re.match(r"https://t.me/(?:c/)?(.*)/(\d+)", message.text)
+        if match:
+            channel_id, msg_id = match.groups()
+            if channel_id.isdigit() and f"-100{channel_id}" == str(client.db_channel.id):
+                return int(msg_id)
+            elif channel_id == client.db_channel.username:
+                return int(msg_id)
+    return 0
+
 
 def get_readable_time(seconds: int) -> str:
-    count = 0
-    up_time = ""
-    time_list = []
     time_suffix_list = ["s", "m", "h", "days"]
+    time_list = []
+    count = 0
+
     while count < 4:
         count += 1
-        remainder, result = divmod(seconds, 60) if count < 3 else divmod(seconds, 24)
+        remainder, result = divmod(seconds, 60 if count < 3 else 24)
         if seconds == 0 and remainder == 0:
             break
-        time_list.append(int(result))
+        time_list.append(f"{int(result)}{time_suffix_list[count - 1]}")
         seconds = int(remainder)
-    hmm = len(time_list)
-    for x in range(hmm):
-        time_list[x] = str(time_list[x]) + time_suffix_list[x]
-    if len(time_list) == 4:
-        up_time += f"{time_list.pop()}, "
-    time_list.reverse()
-    up_time += ":".join(time_list)
-    return up_time
-####
-import asyncio
+
+    return ":".join(reversed(time_list))
+
+
 async def delete_file(messages, client, process):
-    await asyncio.sleep(AUTO_DELETE_TIME) 
+    """Deletes messages after a set time and edits the process message."""
+    await asyncio.sleep(AUTO_DELETE_TIME)
 
     for msg in messages:
         try:
-            if not msg:
-                print("Skipping: Message does not exist or was already deleted.")
-                continue
-
-            await client.delete_messages(chat_id=msg.chat.id, message_ids=[msg.id])
-            print(f"Successfully deleted message {msg.id}")
-
+            if msg:
+                await client.delete_messages(chat_id=msg.chat.id, message_ids=[msg.id])
+                print(f"Successfully deleted message {msg.id}")
         except Exception as e:
             print(f"Failed to delete message {msg.id}: {e}")
 
@@ -159,5 +124,6 @@ async def delete_file(messages, client, process):
         await process.edit_text(AUTO_DEL_SUCCESS_MSG)
     except Exception as e:
         print(f"Failed to edit process message: {e}")
+
 
 subscribed = filters.create(is_subscribed)
