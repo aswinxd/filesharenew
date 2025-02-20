@@ -24,7 +24,8 @@ async def is_subscribed(filter, client, update) -> bool:
         return True
 
     user_id = update.from_user.id
-    return all(await check_each(client, group_id, user_id) for group_id in FORCE_SUB_CHANNELS)
+    return all(await asyncio.gather(*(check_each(client, group_id, user_id) for group_id in FORCE_SUB_CHANNELS)))
+
 
 
 async def check_each(client, group_id: int, user_id: int) -> bool:
