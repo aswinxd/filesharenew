@@ -14,6 +14,7 @@ from config import (
 )
 from database.database import add_user, present_user
 from helper_func import subscribed, encode, decode, get_messages, delete_file
+from pyrogram.types import ChatJoinRequest
 
 def get_join_buttons(client):
     buttons = []
