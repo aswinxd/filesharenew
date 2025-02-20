@@ -36,7 +36,7 @@ FORCE_SUB_CHANNELS = [
     int(channel.strip()) for channel in FORCE_SUB_CHANNEL.split(",") if channel.strip()
 ]
 
-JOIN_REQUEST_ENABLE = os.environ.get("JOIN_REQUEST_ENABLED", False)
+JOIN_REQUEST_ENABLE = os.environ.get("JOIN_REQUEST_ENABLED", True)
 
 TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "4"))
 

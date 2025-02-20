@@ -5,16 +5,16 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.errors import FloodWait
+from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated 
 from database.database import check_join_request
 
 from bot import Bot
 from config import (
     ADMINS, FORCE_MSG, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, 
     PROTECT_CONTENT, START_PIC, AUTO_DELETE_TIME, AUTO_DELETE_MSG, 
-    JOIN_REQUEST_ENABLE, FORCE_SUB_CHANNELS
+    JOIN_REQUEST_ENABLE, FORCE_SUB_CHANNELS # WAIT_MSG, REPLY_ERROR
 )
-from database.database import add_user, present_user
+from database.database import add_user, present_user, add_join_request, full_userbase, del_user
 from helper_func import subscribed, encode, decode, get_messages, delete_file
 from pyrogram.types import ChatJoinRequest
 
@@ -216,9 +216,18 @@ Unsuccessful: <code>{unsuccessful}</code></b>"""
         await asyncio.sleep(8)
         await msg.delete()
 
+from pyrogram import Client, filters
+from pyrogram.types import ChatJoinRequest
+import os
+
+
 @Bot.on_chat_join_request(filters.chat(FORCE_SUB_CHANNELS))
 async def handle_chat_join_request(client: Client, join_request: ChatJoinRequest):
     user_id = join_request.from_user.id
     group_id = join_request.chat.id
+    print(f"Join request received from {user_id} in {group_id}")
     if not await check_join_request(group_id, user_id):
+        print(f"User {user_id} is not in database. Adding...")
         await add_join_request(group_id, user_id)
+    else:
+        print(f"User {user_id} already exists in database.")
