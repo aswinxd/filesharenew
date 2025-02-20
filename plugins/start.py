@@ -22,7 +22,7 @@ def get_join_buttons(client):
     buttons = []
     for channel_id in FORCE_SUB_CHANNELS:
         if JOIN_REQUEST_ENABLE:
-            invite = asyncio.run(client.create_chat_invite_link(
+            invite = await client.create_chat_invite_link(
                 chat_id=channel_id,
                 creates_join_request=True
             ))
