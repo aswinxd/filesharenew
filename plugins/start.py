@@ -37,7 +37,7 @@ async def not_joined(client: Client, message: Message):
     if await subscribed(client, message):
         return await start_command(client, message)
     
-    buttons = get_join_buttons(client)
+    await buttons = get_join_buttons(client)
     try:
         buttons.append([
             InlineKeyboardButton(
