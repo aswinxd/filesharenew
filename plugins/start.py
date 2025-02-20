@@ -18,14 +18,14 @@ from database.database import add_user, present_user
 from helper_func import subscribed, encode, decode, get_messages, delete_file
 from pyrogram.types import ChatJoinRequest
 
-def get_join_buttons(client):
+async def get_join_buttons(client):
     buttons = []
     for channel_id in FORCE_SUB_CHANNELS:
         if JOIN_REQUEST_ENABLE:
             invite = await client.create_chat_invite_link(
                 chat_id=channel_id,
                 creates_join_request=True
-            ))
+            )
             ButtonUrl = invite.invite_link
         else:
             ButtonUrl = client.invite_links.get(channel_id, f"https://t.me/{channel_id}")
