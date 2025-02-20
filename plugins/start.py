@@ -166,40 +166,39 @@ async def not_joined(client: Client, message: Message):
     buttons = []
 
     for channel_id in FORCE_SUB_CHANNELS:
-            if bool(JOIN_REQUEST_ENABLE):
-                invite = await client.create_chat_invite_link(
-                    chat_id=channel_id,
-                    creates_join_request=True
-                )
-                ButtonUrl = invite.invite_link
-            else:
-                ButtonUrl = client.invite_links[channel_id]
-            buttons.append([InlineKeyboardButton(text=f"Join Channel", url=ButtonUrl)])
+        if bool(JOIN_REQUEST_ENABLE):
+            invite = await client.create_chat_invite_link(
+                chat_id=channel_id,
+                creates_join_request=True
+            )
+            ButtonUrl = invite.invite_link
+        else:
+            ButtonUrl = client.invite_links[channel_id]
+        buttons.append([InlineKeyboardButton(text="Join Channel", url=ButtonUrl)])
 
-    try:
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    text = 'Try Again',
-                    url = f"https://t.me/{client.username}?start={message.command[1]}"
-                )
-            ]
-        )
-    except IndexError:
-        pass
+    bot_username = (await client.get_me()).username  
+
+    if len(message.command) > 1: 
+        buttons.append([
+            InlineKeyboardButton(
+                text="Try Again",
+                url=f"https://t.me/{bot_username}?start={message.command[1]}"
+            )
+        ])
 
     await message.reply(
-        text = FORCE_MSG.format(
-                first = message.from_user.first_name,
-                last = message.from_user.last_name,
-                username = None if not message.from_user.username else '@' + message.from_user.username,
-                mention = message.from_user.mention,
-                id = message.from_user.id
-            ),
-        reply_markup = InlineKeyboardMarkup(buttons),
-        quote = True,
-        disable_web_page_preview = True
+        text=FORCE_MSG.format(
+            first=message.from_user.first_name,
+            last=message.from_user.last_name,
+            username=None if not message.from_user.username else '@' + message.from_user.username,
+            mention=message.from_user.mention,
+            id=message.from_user.id
+        ),
+        reply_markup=InlineKeyboardMarkup(buttons),
+        quote=True,
+        disable_web_page_preview=True
     )
+
 
 @Bot.on_message(filters.command('users') & filters.private & filters.user(ADMINS))
 async def get_users(client: Bot, message: Message):
